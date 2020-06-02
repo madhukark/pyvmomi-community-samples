@@ -93,13 +93,19 @@ def main():
         atexit.register(connect.Disconnect, service_instance)
         content = service_instance.RetrieveContent()
         vm = get_obj(content, [vim.VirtualMachine], args.vm_name)
+        network_exists = 0
         for network in vm.runtime.host.network:
+            if (network.name == args.network_name):
+                network_exists = 1
             if isinstance(get_obj(content,
                                   [vim.Network],
                                   network.name), vim.DistributedVirtualPortgroup):
                 if (network.config.backingType == "nsx" and
                     network.name == args.network_name):
                     host_nsx_dvpgs.append(network)
+        if not network_exists:
+            print("Given network " + args.network_name + " is not avaiable on the host")
+            return -1
         if len(host_nsx_dvpgs) > 1:
             print("Multiple NSX-T Segments of the same name found. Cannot pick the "
                   "correct one based on the network name.")
@@ -177,8 +183,8 @@ def main():
                 break
 
         config_spec = vim.vm.ConfigSpec(deviceChange=device_change)
-#        task = vm.ReconfigVM_Task(config_spec)
-#        tasks.wait_for_tasks(service_instance, [task])
+        task = vm.ReconfigVM_Task(config_spec)
+        tasks.wait_for_tasks(service_instance, [task])
         print("Successfully changed network")
 
     except vmodl.MethodFault as error:
