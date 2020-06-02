@@ -152,11 +152,9 @@ def main():
                     # network.config.backingType requires SDK 7.x
                     if network.config.backingType == "nsx":
                         # This is a NSX DVPG. Make sure its the one available on the host
-                        found = 0
                         for nsx_dvpg in host_nsx_dvpgs:
                             if nsx_dvpg.name == network.name:
                                 network = nsx_dvpg
-                                found = found + 1
 
                     dvs_port_connection = vim.dvs.PortConnection()
                     dvs_port_connection.portgroupKey = network.key
