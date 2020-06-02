@@ -3,12 +3,22 @@
 Written by Yasen Simeonov
 Github: https://github.com/yasensim
 
+Addition by Madhukar Krishnarao
+Github: https://github.com/madhukark
+
 This code is released under the terms of the Apache 2
 http://www.apache.org/licenses/LICENSE-2.0.html
 
 Example script to change the network of the Virtual Machine NIC
 that includes NSX-T opeque switch
-
+Addition:
+  - Add support for dealing with mutiple DVPG names. Can happen when the
+    following cases are met
+      - NSX 3.0+ vSphere 7.0+ and
+      - Multiple Clusters, each with its own VDS prepped for NSX and
+      - all the clusters are part of the same Transport Zone
+    In such a case, each NSX Segment will have a NSX DVPG under each of the VDS
+################################################################################
 """
 
 import atexit
@@ -33,7 +43,7 @@ def get_args():
     parser.add_argument('-n', '--network_name',
                         required=True,
                         action='store',
-                        help='Name of the portgroup or NSX-T Logical Switch')
+                        help='Name of the portgroup or NSX-T Segment')
 
     args = parser.parse_args()
 
@@ -62,6 +72,7 @@ def main():
     """
 
     args = get_args()
+    host_nsx_dvpgs = []
     sslContext = None
 
     if args.disable_ssl_verification:
@@ -82,6 +93,22 @@ def main():
         atexit.register(connect.Disconnect, service_instance)
         content = service_instance.RetrieveContent()
         vm = get_obj(content, [vim.VirtualMachine], args.vm_name)
+        for network in vm.runtime.host.network:
+            if isinstance(get_obj(content,
+                                  [vim.Network],
+                                  network.name), vim.DistributedVirtualPortgroup):
+                if (network.config.backingType == "nsx" and
+                    network.name == args.network_name):
+                    host_nsx_dvpgs.append(network)
+        if len(host_nsx_dvpgs) > 1:
+            print("Multiple NSX-T Segments of the same name found. Cannot pick the "
+                  "correct one based on the network name.")
+            print("Available Networks on the host with the name: " + args.network_name)
+            for nsx_dvpg in host_nsx_dvpgs:
+                print(" network.config.segmentId: %s, " \
+                      " network.config.logicalSwitchUuid: %s" % \
+                    (nsx_dvpg.config.segmentId, nsx_dvpg.config.logicalSwitchUuid))
+            return -1
         # This code is for changing only one Interface. For multiple Interface
         # Iterate through a loop of network names.
         device_change = []
@@ -99,6 +126,7 @@ def main():
                                       args.network_name), vim.OpaqueNetwork):
                     network = \
                         get_obj(content, [vim.Network], args.network_name)
+           # Check and see if we need to validate for duplicate OpaqueNetworks
                     nicspec.device.backing = \
                         vim.vm.device.VirtualEthernetCard. \
                         OpaqueNetworkBackingInfo()
@@ -108,12 +136,21 @@ def main():
                     nicspec.device.backing.opaqueNetworkId = network_id
 
                 # vSphere Distributed Virtual Switch
-                elif hasattr(get_obj(content,
-                                     [vim.Network],
-                                     args.network_name), 'portKeys'):
+                elif isinstance(get_obj(content,
+                                        [vim.Network],
+                                        args.network_name),
+                                        vim.dvs.DistributedVirtualPortgroup):
                     network = get_obj(content,
                                       [vim.dvs.DistributedVirtualPortgroup],
                                       args.network_name)
+                    if network.config.backingType == "nsx":
+                        # This is a NSX DVPG. Make sure its the one available on the host
+                        found = 0
+                        for nsx_dvpg in host_nsx_dvpgs:
+                            if nsx_dvpg.name == network.name:
+                                network = nsx_dvpg
+                                found = found + 1
+
                     dvs_port_connection = vim.dvs.PortConnection()
                     dvs_port_connection.portgroupKey = network.key
                     dvs_port_connection.switchUuid = \
@@ -140,8 +177,8 @@ def main():
                 break
 
         config_spec = vim.vm.ConfigSpec(deviceChange=device_change)
-        task = vm.ReconfigVM_Task(config_spec)
-        tasks.wait_for_tasks(service_instance, [task])
+#        task = vm.ReconfigVM_Task(config_spec)
+#        tasks.wait_for_tasks(service_instance, [task])
         print("Successfully changed network")
 
     except vmodl.MethodFault as error:
