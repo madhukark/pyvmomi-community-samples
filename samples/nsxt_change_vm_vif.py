@@ -132,7 +132,6 @@ def main():
                                       args.network_name), vim.OpaqueNetwork):
                     network = \
                         get_obj(content, [vim.Network], args.network_name)
-           # Check and see if we need to validate for duplicate OpaqueNetworks
                     nicspec.device.backing = \
                         vim.vm.device.VirtualEthernetCard. \
                         OpaqueNetworkBackingInfo()
