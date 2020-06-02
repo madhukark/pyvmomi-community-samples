@@ -100,6 +100,7 @@ def main():
             if isinstance(get_obj(content,
                                   [vim.Network],
                                   network.name), vim.DistributedVirtualPortgroup):
+                # network.config.backingType requires SDK 7.x
                 if (network.config.backingType == "nsx" and
                     network.name == args.network_name):
                     host_nsx_dvpgs.append(network)
@@ -148,6 +149,7 @@ def main():
                     network = get_obj(content,
                                       [vim.dvs.DistributedVirtualPortgroup],
                                       args.network_name)
+                    # network.config.backingType requires SDK 7.x
                     if network.config.backingType == "nsx":
                         # This is a NSX DVPG. Make sure its the one available on the host
                         found = 0
