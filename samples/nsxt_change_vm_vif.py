@@ -10,15 +10,13 @@ This code is released under the terms of the Apache 2
 http://www.apache.org/licenses/LICENSE-2.0.html
 
 Example script to change the network of the Virtual Machine NIC
-that includes NSX-T opeque switch
+that includes NSX-T opaque switch
 Addition:
   - Add support for dealing with mutiple DVPG names. Can happen when the
     following cases are met
       - NSX 3.0+ vSphere 7.0+ and
-      - Multiple Clusters, each with its own VDS prepped for NSX and
-      - all the clusters are part of the same Transport Zone
-    In such a case, each NSX Segment will have a NSX DVPG under each of the VDS
-################################################################################
+      - Multiple NSX DVPGs across multiple VDS representing the same
+        NSX-T Segment
 """
 
 import atexit
@@ -68,7 +66,7 @@ def get_obj(content, vimtype, name):
 def main():
     """
     Simple command-line program for changing network virtual machines NIC
-    that includes NSX-T opeque switch.
+    that includes NSX-T opaque switch.
     """
 
     args = get_args()
