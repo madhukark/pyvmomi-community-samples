@@ -95,6 +95,15 @@ def main():
                     network_exists = 1
                     network = net
                     break 
+            elif isinstance(net, vim.OpaqueNetwork):
+                for ec in net.extraConfig:
+                    # OpaqueNetworks have the Segment path in the formmat:
+                    # /infra/segments/<segment-id> instead of segmentId
+                    if (ec.key == "com.vmware.opaquenetwork.segment.path" and
+                        args.id == ec.value.split('/')[3]):
+                        network_exists = 1
+                        network = net
+                        break
 
         if not network_exists:
             print("Given network ID does not exist or invalid network type")
@@ -113,8 +122,13 @@ def main():
 
                 # NSX-T Logical Switch
                 if isinstance(network, vim.OpaqueNetwork):
-                    print("Does not suppprt OpaqueNetwork")
-                    return -1
+                    nicspec.device.backing = \
+                        vim.vm.device.VirtualEthernetCard. \
+                        OpaqueNetworkBackingInfo()
+                    network_id = network.summary.opaqueNetworkId
+                    network_type = network.summary.opaqueNetworkType
+                    nicspec.device.backing.opaqueNetworkType = network_type
+                    nicspec.device.backing.opaqueNetworkId = network_id
 
                 # vSphere Distributed Virtual Switch
                 elif isinstance(get_obj(content,
