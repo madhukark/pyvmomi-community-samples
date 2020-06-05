@@ -89,18 +89,28 @@ def main():
         network_exists = 0
         network = None
         for net in vm.runtime.host.network:
-            if hasattr(net, 'config'):
-                if (net.config.segmentId == args.id or
-                    net.config.logicalSwitchUuid == args.id):
-                    network_exists = 1
-                    network = net
-                    break 
+            if isinstance(net, vim.dvs.DistributedVirtualPortgroup):
+                # NSX DVPG
+                if hasattr(net, 'config'):
+                    if (net.config.segmentId == args.id or
+                        net.config.logicalSwitchUuid == args.id):
+                        network_exists = 1
+                        network = net
+                        break
             elif isinstance(net, vim.OpaqueNetwork):
-                for ec in net.extraConfig:
-                    # OpaqueNetworks have the Segment path in the formmat:
-                    # /infra/segments/<segment-id> instead of segmentId
-                    if (ec.key == "com.vmware.opaquenetwork.segment.path" and
-                        args.id == ec.value.split('/')[3]):
+                if hasattr(net, 'extraConfig'):
+                    # NVDS created through Policy
+                    for ec in net.extraConfig:
+                        # OpaqueNetworks have the Segment path in the formmat:
+                        # /infra/segments/<segment-id> instead of segmentId
+                        if (ec.key == "com.vmware.opaquenetwork.segment.path" and
+                            args.id == ec.value.split('/')[3]):
+                            network_exists = 1
+                            network = net
+                            break
+                if hasattr(net, 'summary'):
+                    # NVDS created through MP
+                    if (args.id == net.summary.opaqueNetworkId):
                         network_exists = 1
                         network = net
                         break
@@ -108,6 +118,8 @@ def main():
         if not network_exists:
             print("Given network ID does not exist or invalid network type")
             return -1
+        else:
+            print("Found " + network.name + " corresponding to ID " + args.id)
 
         # This code is for changing only one Interface. For multiple Interface
         # Iterate through a loop of network names.
@@ -131,10 +143,7 @@ def main():
                     nicspec.device.backing.opaqueNetworkId = network_id
 
                 # vSphere Distributed Virtual Switch
-                elif isinstance(get_obj(content,
-                                        [vim.Network],
-                                        network.name),
-                                        vim.dvs.DistributedVirtualPortgroup):
+                elif isinstance(network, vim.dvs.DistributedVirtualPortgroup):
                     # network.config.backingType requires SDK 7.x
                     if network.config.backingType == "nsx":
                         dvs_port_connection = vim.dvs.PortConnection()
