@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 """
-Written by Yasen Simeonov
-Github: https://github.com/yasensim
 
 Addition by Madhukar Krishnarao
 Github: https://github.com/madhukark
+
+Written by Yasen Simeonov
+Github: https://github.com/yasensim
 
 This code is released under the terms of the Apache 2
 http://www.apache.org/licenses/LICENSE-2.0.html
